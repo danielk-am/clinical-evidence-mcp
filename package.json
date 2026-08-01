@@ -1,0 +1,36 @@
+{
+  "name": "clinical-evidence-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only MCP server for cited medical literature, clinical trials, and drug safety data",
+  "type": "module",
+  "bin": {
+    "clinical-evidence-mcp": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/server.js",
+    "cli": "node dist/cli.js",
+    "dev": "tsx src/server.ts",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "smoke:mcp": "npm run build && node scripts/smoke-mcp.mjs",
+    "smoke:providers": "npm run build && node scripts/smoke-providers.mjs",
+    "verify": "npm run check && npm test && npm run smoke:mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "express": "5.2.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "22.19.15",
+    "tsx": "4.23.1",
+    "typescript": "6.0.2"
+  },
+  "license": "MIT"
+}
