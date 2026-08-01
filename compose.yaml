@@ -55,4 +55,3 @@ networks:
 
 volumes:
   clinical-evidence-data:
-    name: clinical-evidence-data
