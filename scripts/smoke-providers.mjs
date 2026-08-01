@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { loadConfig } from "../dist/config.js";
 import { searchClinicalTrials } from "../dist/providers/clinical-trials.js";
 import { searchLiterature } from "../dist/providers/literature.js";
