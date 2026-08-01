@@ -1,22 +1,30 @@
-#!/usr/bin/env node
-import assert from "node:assert/strict";
 import { loadConfig } from "../dist/config.js";
 import { searchClinicalTrials } from "../dist/providers/clinical-trials.js";
 import { searchLiterature } from "../dist/providers/literature.js";
 import { searchDrugLabels } from "../dist/providers/openfda.js";
 
 const config = loadConfig({
-  HOST: "127.0.0.1",
-  PORT: "3946",
-  DATA_DIR: "./data",
   MCP_PUBLIC_URL: "http://127.0.0.1:3946",
+  UPSTREAM_TIMEOUT_MS: "30000",
+  ...(process.env.NCBI_EMAIL ? { NCBI_EMAIL: process.env.NCBI_EMAIL } : {}),
+  ...(process.env.NCBI_API_KEY ? { NCBI_API_KEY: process.env.NCBI_API_KEY } : {}),
 });
+
 const [literature, trials, labels] = await Promise.all([
-  searchLiterature(config, { query: "hypertension", limit: 1, sort: "relevance" }),
-  searchClinicalTrials(config, { condition: "hypertension", limit: 1 }),
-  searchDrugLabels(config, { drug: "lisinopril", limit: 1 }),
+  searchLiterature(config, { query: "heart failure SGLT2", limit: 2, sort: "newest" }),
+  searchClinicalTrials(config, { condition: "heart failure", limit: 2 }),
+  searchDrugLabels(config, { drug: "dapagliflozin", limit: 1 }),
 ]);
-assert(literature.returned > 0);
-assert(trials.returned > 0);
-assert(labels.returned > 0);
-process.stdout.write("Provider smoke test passed for literature, trials, and drug labels.\n");
+
+if (literature.returned < 1 || trials.returned < 1 || labels.returned < 1) {
+  throw new Error("At least one live provider returned no smoke-test records.");
+}
+
+process.stdout.write(
+  `${JSON.stringify({
+    ok: true,
+    literature: literature.returned,
+    trials: trials.returned,
+    labels: labels.returned,
+  })}\n`,
+);

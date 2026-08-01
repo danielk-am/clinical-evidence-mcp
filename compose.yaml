@@ -1,50 +1,58 @@
-name: clinical-evidence-mcp
-
 services:
   clinical-evidence-mcp:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: clinical-evidence-mcp:local
     container_name: clinical-evidence-mcp
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     environment:
       HOST: 0.0.0.0
       PORT: 3946
       DATA_DIR: /data
-      MCP_PUBLIC_URL: https://clinical-evidence-mcp.danielk.am
-      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-https://claude.ai}
-      REQUESTS_PER_MINUTE: ${REQUESTS_PER_MINUTE:-60}
-      UPSTREAM_TIMEOUT_MS: ${UPSTREAM_TIMEOUT_MS:-20000}
-      NCBI_EMAIL: ${NCBI_EMAIL:-}
-      NCBI_API_KEY: ${NCBI_API_KEY:-}
+      MCP_PUBLIC_URL: https://${MCP_DOMAIN:-clinical-evidence-mcp.example.com}
+    expose:
+      - "3946"
     volumes:
       - clinical-evidence-data:/data
     networks:
       - coolify
+      - clinical-evidence-private
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3946/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     read_only: true
     tmpfs:
       - /tmp:size=32m,mode=1777
-    cap_drop:
-      - ALL
+    mem_limit: 512m
     security_opt:
       - no-new-privileges:true
-    mem_limit: 512m
+    cap_drop:
+      - ALL
     labels:
       traefik.enable: "true"
       traefik.docker.network: coolify
-      traefik.http.routers.clinical-evidence-mcp-http.entrypoints: http
-      traefik.http.routers.clinical-evidence-mcp-http.rule: Host(`clinical-evidence-mcp.danielk.am`)
-      traefik.http.routers.clinical-evidence-mcp-http.middlewares: redirect-to-https
-      traefik.http.routers.clinical-evidence-mcp-https.entrypoints: https
-      traefik.http.routers.clinical-evidence-mcp-https.rule: Host(`clinical-evidence-mcp.danielk.am`)
-      traefik.http.routers.clinical-evidence-mcp-https.tls: "true"
-      traefik.http.routers.clinical-evidence-mcp-https.tls.certresolver: letsencrypt
+      traefik.http.routers.clinical-evidence-mcp.entrypoints: https
+      traefik.http.routers.clinical-evidence-mcp.rule: Host(`${MCP_DOMAIN:-clinical-evidence-mcp.example.com}`)
+      traefik.http.routers.clinical-evidence-mcp.tls: "true"
+      traefik.http.routers.clinical-evidence-mcp.tls.certresolver: letsencrypt
       traefik.http.services.clinical-evidence-mcp.loadbalancer.server.port: "3946"
 
 networks:
   coolify:
     external: true
+  clinical-evidence-private:
+    name: clinical-evidence-private
+    internal: true
 
 volumes:
   clinical-evidence-data:
+    name: clinical-evidence-data

@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const TOKEN_PREFIX = "cemcp";
@@ -62,6 +62,7 @@ export class TokenRegistry {
 
   async initialize(): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 });
+    await chmod(dirname(this.filePath), 0o700);
     try {
       await readFile(this.filePath, "utf8");
     } catch (error) {

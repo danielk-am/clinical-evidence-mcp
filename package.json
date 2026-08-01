@@ -19,6 +19,7 @@
     "test": "npm run build && node --test dist/test/*.test.js",
     "smoke:mcp": "npm run build && node scripts/smoke-mcp.mjs",
     "smoke:providers": "npm run build && node scripts/smoke-providers.mjs",
+    "smoke:remote": "node scripts/smoke-remote.mjs",
     "verify": "npm run check && npm test && npm run smoke:mcp"
   },
   "dependencies": {

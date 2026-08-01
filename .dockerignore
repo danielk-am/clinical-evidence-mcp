@@ -1,8 +1,10 @@
+.env
+.env.*
+!.env.example
 .git
 .github
-.env
 data
 dist
 node_modules
+coverage
 *.log
-.DS_Store
