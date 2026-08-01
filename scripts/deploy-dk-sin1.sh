@@ -8,6 +8,7 @@ ssh dk-sin1 "install -d -m 755 '${remote_dir}'"
 rsync -az --delete \
   --exclude '.git/' \
   --exclude '.env' \
+  --exclude '.env.*' \
   --exclude 'data/' \
   --exclude 'dist/' \
   --exclude 'node_modules/' \
