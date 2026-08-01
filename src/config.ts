@@ -20,6 +20,7 @@ export interface SyndicatedSourceConfig {
   token: string;
   allowedAccountIds: ReadonlySet<string>;
   timeoutMs: number;
+  loginProxyUrl?: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -61,8 +62,9 @@ function loadSyndicatedSourceConfig(
       .map((value) => value.trim())
       .filter(Boolean),
   );
+  const loginProxyUrl = loadPrivateProxyUrl(env.SYNDICATED_SOURCE_LOGIN_PROXY_URL);
 
-  if (!baseUrlValue && !token && accountIds.size === 0) {
+  if (!baseUrlValue && !token && accountIds.size === 0 && !loginProxyUrl) {
     return undefined;
   }
   if (!baseUrlValue || !token || accountIds.size === 0) {
@@ -88,7 +90,22 @@ function loadSyndicatedSourceConfig(
     token,
     allowedAccountIds: accountIds,
     timeoutMs: positiveInteger(env.SYNDICATED_SOURCE_TIMEOUT_MS, 200_000),
+    ...(loginProxyUrl ? { loginProxyUrl } : {}),
   };
+}
+
+function loadPrivateProxyUrl(value: string | undefined): string | undefined {
+  const cleaned = cleanOptional(value);
+  if (!cleaned) return undefined;
+  const url = new URL(cleaned);
+  if (url.protocol !== "http:" || !isPrivateServiceHost(url.hostname)) {
+    throw new Error("SYNDICATED_SOURCE_LOGIN_PROXY_URL must use HTTP on a private service hostname.");
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error("SYNDICATED_SOURCE_LOGIN_PROXY_URL must not include credentials, query, or fragment.");
+  }
+  url.pathname = url.pathname.replace(/\/+$/, "");
+  return url.toString().replace(/\/$/, "");
 }
 
 function normalizePublicUrl(value: string): string {

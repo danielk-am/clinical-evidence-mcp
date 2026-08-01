@@ -16,7 +16,7 @@ This repository serves cited clinical research data through Model Context Protoc
 - Keep credentials, runtime data, `.env`, and generated output outside Git.
 - Use Streamable HTTP. Do not add legacy HTTP and SSE transport.
 - Keep dependency versions exact.
-- Keep vendor-specific browser automation and session material outside this public repository.
+- Keep vendor-specific browser automation and upstream session material outside this public repository. Temporary login gateway secrets must stay digest-only and in memory.
 
 ## Verification
 

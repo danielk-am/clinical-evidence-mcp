@@ -21,7 +21,7 @@ A bearer token is required. Tokens are issued by the operator, bound to one emai
 
 The server also exposes `clinical-evidence://sources`, a resource describing upstream datasets and their limits.
 
-An optional private source can add four allowlisted tools: `syndicated_source_status`, `syndicated_research_ask`, `syndicated_article_get`, and `syndicated_article_wait`. This integration is disabled by default. Creating a syndicated research question creates one record in that private upstream account, and the MCP annotation states this side effect.
+An optional private source can add four allowlisted research tools: `syndicated_source_status`, `syndicated_research_ask`, `syndicated_article_get`, and `syndicated_article_wait`. When its private browser proxy is configured, two more tools start and finish an interactive sign-in. This integration is disabled by default. Creating a syndicated research question creates one record in that private upstream account, and the MCP annotation states this side effect.
 
 ## Connect LibreChat
 
@@ -126,6 +126,14 @@ The private bridge must:
 - avoid exposing history, account data, raw payloads, cookies, browser profiles, or patient identifiers;
 - label question creation as a remote side effect.
 
+### Interactive private-source sign-in
+
+Set `SYNDICATED_SOURCE_LOGIN_PROXY_URL` to the private bridge's internal noVNC URL, normally `http://clinical-evidence-openevidence:6080`. The bridge and port stay on `clinical-evidence-private`; the existing public service proxies only a currently authorised login session.
+
+`syndicated_source_login_start` first closes any old browser session, starts one temporary browser, and returns MCP URL elicitation. The public URL carries a 32-byte nonce in its fragment, so the secret is not sent in the HTTP request or recorded by Traefik. The browser exchanges it once for a random `HttpOnly; Secure; SameSite=Strict` cookie. HTTP assets and the WebSocket require that cookie. The raw nonce lives for two minutes; the full browser session lives for at most 15 minutes.
+
+Clients implementing MCP URL elicitation open the page from error code `-32042`. Clients that do not support it can call the same tool with `delivery=link`. Credentials are entered only in Chromium and never pass through MCP. After sign-in, call `syndicated_source_login_finish` to revoke browser access, stop Chromium, flush the private profile, and verify authentication.
+
 Vendor terms and API permission still apply. Private deployment does not override them.
 
 ## Configuration
@@ -146,6 +154,7 @@ Vendor terms and API permission still apply. Private deployment does not overrid
 | `SYNDICATED_SOURCE_TOKEN` | unset | Bridge bearer secret |
 | `SYNDICATED_SOURCE_ALLOWED_ACCOUNT_IDS` | unset | Comma-separated MCP account allowlist |
 | `SYNDICATED_SOURCE_TIMEOUT_MS` | `200000` | Private provider request timeout |
+| `SYNDICATED_SOURCE_LOGIN_PROXY_URL` | unset | Internal noVNC URL enabling temporary account-gated sign-in |
 
 ## Safety and data limits
 

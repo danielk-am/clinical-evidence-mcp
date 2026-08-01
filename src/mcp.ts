@@ -1,14 +1,19 @@
+import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { UrlElicitationRequiredError } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { AppConfig } from "./config.js";
 import { safeErrorMessage } from "./errors.js";
+import type { SyndicatedLoginGateway } from "./login-gateway.js";
 import { getClinicalTrial, searchClinicalTrials } from "./providers/clinical-trials.js";
 import { getLiteratureArticle, searchLiterature } from "./providers/literature.js";
 import { getDrugAdverseEventSummary, searchDrugLabels } from "./providers/openfda.js";
 import {
   askSyndicatedSource,
+  finishSyndicatedLogin,
   getSyndicatedArticle,
   getSyndicatedStatus,
+  startSyndicatedLogin,
   syndicatedSourceForAccount,
   waitForSyndicatedArticle,
 } from "./providers/syndicated.js";
@@ -22,6 +27,13 @@ const READ_ONLY = {
 } as const;
 
 const CREATES_REMOTE_RECORD = {
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;
+
+const STARTS_REMOTE_SESSION = {
   readOnlyHint: false,
   destructiveHint: false,
   idempotentHint: false,
@@ -45,7 +57,11 @@ const TRIAL_STATUSES = [
   "UNKNOWN",
 ] as const;
 
-export function createClinicalEvidenceServer(config: AppConfig, principal: Principal): McpServer {
+export function createClinicalEvidenceServer(
+  config: AppConfig,
+  principal: Principal,
+  loginGateway?: SyndicatedLoginGateway,
+): McpServer {
   const syndicatedSource = syndicatedSourceForAccount(config, principal.accountId);
   const server = new McpServer(
     {
@@ -83,6 +99,55 @@ export function createClinicalEvidenceServer(config: AppConfig, principal: Princ
   );
 
   if (syndicatedSource) {
+    if (syndicatedSource.loginProxyUrl && loginGateway) {
+      server.registerTool(
+        "syndicated_source_login_start",
+        {
+          title: `Sign in to ${syndicatedSource.name}`,
+          description: `Start a short-lived private browser session for ${syndicatedSource.name}. Credentials stay in the browser and never pass through MCP. URL-capable clients open it directly; use delivery=link for a clickable fallback.`,
+          inputSchema: {
+            delivery: z.enum(["auto", "link"]).default("auto"),
+          },
+          annotations: STARTS_REMOTE_SESSION,
+        },
+        async ({ delivery }) => {
+          loginGateway.invalidate();
+          await finishSyndicatedLogin(syndicatedSource);
+          const session = await startSyndicatedLogin(syndicatedSource);
+          const activation = loginGateway.activate(session.sessionId, session.expiresAt);
+          const payload = {
+            provider: syndicatedSource.name,
+            login_url: activation.url,
+            expires_at: activation.expiresAt,
+            next_tool: "syndicated_source_login_finish",
+          };
+          if (delivery === "link") return toolResult(payload);
+          throw new UrlElicitationRequiredError(
+            [{
+              mode: "url",
+              message: `Sign in to ${syndicatedSource.name}. Then call syndicated_source_login_finish.`,
+              url: activation.url,
+              elicitationId: randomUUID(),
+            }],
+            "Browser sign-in required. If this client cannot open URL elicitation, retry with delivery='link'.",
+          );
+        },
+      );
+
+      server.registerTool(
+        "syndicated_source_login_finish",
+        {
+          title: `Finish ${syndicatedSource.name} sign-in`,
+          description: `Close the temporary private browser, revoke browser access, and verify the saved ${syndicatedSource.name} session.`,
+          annotations: STARTS_REMOTE_SESSION,
+        },
+        async () => {
+          loginGateway.invalidate();
+          return runTool(() => finishSyndicatedLogin(syndicatedSource));
+        },
+      );
+    }
+
     server.registerTool(
       "syndicated_source_status",
       {
@@ -295,4 +360,12 @@ async function runTool(operation: () => Promise<object>) {
       content: [{ type: "text" as const, text: safeErrorMessage(error) }],
     };
   }
+}
+
+function toolResult(data: object) {
+  const structuredContent = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(structuredContent, null, 2) }],
+    structuredContent,
+  };
 }

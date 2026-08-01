@@ -9,6 +9,11 @@ export interface SyndicatedResult {
   retrievedAt: string;
 }
 
+export interface SyndicatedLoginSession {
+  sessionId: string;
+  expiresAt: string;
+}
+
 export function syndicatedSourceForAccount(
   config: AppConfig,
   accountId: string,
@@ -22,6 +27,29 @@ export async function getSyndicatedStatus(
   fetchImpl?: FetchImplementation,
 ): Promise<SyndicatedResult> {
   return callSyndicated(source, "/v1/auth-status", undefined, fetchImpl);
+}
+
+export async function startSyndicatedLogin(
+  source: SyndicatedSourceConfig,
+  fetchImpl?: FetchImplementation,
+): Promise<SyndicatedLoginSession> {
+  const response = await callSyndicated(source, "/v1/login/start", {}, fetchImpl);
+  const sessionId = validateArticleId(response.result.session_id);
+  const expiresAt = requiredIsoDate(response.result.expires_at, "expires_at");
+  return { sessionId, expiresAt };
+}
+
+export async function finishSyndicatedLogin(
+  source: SyndicatedSourceConfig,
+  sessionId?: string,
+  fetchImpl?: FetchImplementation,
+): Promise<SyndicatedResult> {
+  return callSyndicated(
+    source,
+    "/v1/login/finish",
+    sessionId ? { session_id: validateArticleId(sessionId) } : {},
+    fetchImpl,
+  );
 }
 
 export async function askSyndicatedSource(
@@ -88,10 +116,17 @@ async function callSyndicated(
   return { provider: source.name, result, retrievedAt: retrievedAt() };
 }
 
-function validateArticleId(value: string): string {
-  const articleId = value.trim().toLowerCase();
+function validateArticleId(value: unknown): string {
+  const articleId = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(articleId)) {
     throw new InputError("Article identifier must be a UUID.");
   }
   return articleId;
+}
+
+function requiredIsoDate(value: unknown, field: string): string {
+  if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
+    throw new InputError(`Private source returned an invalid ${field}.`);
+  }
+  return new Date(value).toISOString();
 }

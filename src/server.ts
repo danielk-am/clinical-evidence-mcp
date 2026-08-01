@@ -5,6 +5,7 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { Express, NextFunction, Request, Response } from "express";
 import { loadConfig, type AppConfig } from "./config.js";
 import { InputError } from "./errors.js";
+import { SyndicatedLoginGateway } from "./login-gateway.js";
 import { createClinicalEvidenceServer } from "./mcp.js";
 import { AccountRateLimiter } from "./rate-limit.js";
 import { TokenRegistry, type Principal } from "./token-registry.js";
@@ -12,6 +13,7 @@ import { TokenRegistry, type Principal } from "./token-registry.js";
 interface ApplicationDependencies {
   registry?: TokenRegistry;
   rateLimiter?: AccountRateLimiter;
+  loginGateway?: SyndicatedLoginGateway;
 }
 
 interface AuthenticatedRequest extends Request {
@@ -25,6 +27,7 @@ export async function createApplication(
   const registry = dependencies.registry ?? new TokenRegistry(config.dataDir);
   const rateLimiter = dependencies.rateLimiter ?? new AccountRateLimiter(config.requestsPerMinute);
   await registry.initialize();
+  const loginGateway = dependencies.loginGateway ?? createLoginGateway(config);
 
   const publicHostname = new URL(config.publicUrl).hostname;
   const app = createMcpExpressApp({
@@ -37,6 +40,8 @@ export async function createApplication(
     response.setHeader("cache-control", "no-store");
     response.json({ status: "ok", service: "clinical-evidence-mcp", version: "0.1.0" });
   });
+
+  if (loginGateway) app.use("/oe-login", loginGateway.handler());
 
   app.use("/mcp", validateOrigin(config));
   app.use("/mcp", authenticate(registry));
@@ -55,7 +60,7 @@ export async function createApplication(
     const transport = new StreamableHTTPServerTransport({
       enableJsonResponse: true,
     });
-    const mcpServer = createClinicalEvidenceServer(config, requiredPrincipal(request));
+    const mcpServer = createClinicalEvidenceServer(config, requiredPrincipal(request), loginGateway);
     try {
       await mcpServer.connect(transport as unknown as Transport);
       await transport.handleRequest(request, response, request.body);
@@ -79,8 +84,18 @@ export async function createApplication(
 }
 
 export async function startServer(config = loadConfig()): Promise<HttpServer> {
-  const app = await createApplication(config);
+  const loginGateway = createLoginGateway(config);
+  const app = await createApplication(
+    config,
+    loginGateway ? { loginGateway } : {},
+  );
   const server = createServer(app);
+  if (loginGateway) {
+    server.on("upgrade", (request, socket, head) => {
+      if (!loginGateway.handleUpgrade(request, socket, head)) socket.destroy();
+    });
+    server.once("close", () => loginGateway.invalidate());
+  }
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(config.port, config.host, () => {
@@ -90,6 +105,11 @@ export async function startServer(config = loadConfig()): Promise<HttpServer> {
   });
   process.stdout.write(`clinical-evidence-mcp listening on ${config.mcpUrl}\n`);
   return server;
+}
+
+function createLoginGateway(config: AppConfig): SyndicatedLoginGateway | undefined {
+  const target = config.syndicatedSource?.loginProxyUrl;
+  return target ? new SyndicatedLoginGateway(config.publicUrl, target) : undefined;
 }
 
 function authenticate(registry: TokenRegistry) {

@@ -10,3 +10,4 @@ Initial public release.
 4. Added origin and Host validation, per-account rate limiting, and patient-identifier checks.
 5. Added Docker Compose deployment for `dk-sin1` behind Traefik HTTPS.
 6. Added an optional account-gated contract for private syndicated evidence sources.
+7. Added account-gated MCP URL elicitation for private-source sign-in, with a one-time fragment nonce, HttpOnly session cookie, and internal HTTP/WebSocket proxy.
