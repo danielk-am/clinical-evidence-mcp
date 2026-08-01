@@ -19,5 +19,6 @@ ssh dk-sin1 "cd '${remote_dir}' && test -f .env && docker compose config --quiet
 
 curl -fsS \
   --retry 12 \
+  --retry-all-errors \
   --retry-delay 5 \
   "https://clinical-evidence-mcp.danielk.am/healthz"
