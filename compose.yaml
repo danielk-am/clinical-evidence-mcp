@@ -41,10 +41,10 @@ services:
       traefik.enable: "true"
       traefik.docker.network: coolify
       traefik.http.routers.clinical-evidence-mcp-http.entrypoints: http
-      traefik.http.routers.clinical-evidence-mcp-http.rule: Host(`${MCP_DOMAIN:-clinical-evidence-mcp.danielk.am}`)
+      traefik.http.routers.clinical-evidence-mcp-http.rule: Host(`clinical-evidence-mcp.danielk.am`)
       traefik.http.routers.clinical-evidence-mcp-http.middlewares: redirect-to-https
       traefik.http.routers.clinical-evidence-mcp-https.entrypoints: https
-      traefik.http.routers.clinical-evidence-mcp-https.rule: Host(`${MCP_DOMAIN:-clinical-evidence-mcp.danielk.am}`)
+      traefik.http.routers.clinical-evidence-mcp-https.rule: Host(`clinical-evidence-mcp.danielk.am`)
       traefik.http.routers.clinical-evidence-mcp-https.tls: "true"
       traefik.http.routers.clinical-evidence-mcp-https.tls.certresolver: letsencrypt
       traefik.http.services.clinical-evidence-mcp.loadbalancer.server.port: "3946"
