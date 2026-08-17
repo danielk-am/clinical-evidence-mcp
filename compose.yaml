@@ -58,3 +58,5 @@ networks:
 
 volumes:
   clinical-evidence-data:
+    external: true
+    name: clinical-evidence-mcp_clinical-evidence-data
