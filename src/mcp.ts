@@ -8,6 +8,8 @@ import type { SyndicatedLoginGateway } from "./login-gateway.js";
 import { getClinicalTrial, searchClinicalTrials } from "./providers/clinical-trials.js";
 import { getLiteratureArticle, searchLiterature } from "./providers/literature.js";
 import { getDrugAdverseEventSummary, searchDrugLabels } from "./providers/openfda.js";
+import { searchSingaporeTherapeuticProducts } from "./providers/singapore-hsa.js";
+import { searchSingaporeHealthierSgDrugs } from "./providers/singapore-moh.js";
 import {
   askSyndicatedSource,
   finishSyndicatedLogin,
@@ -55,6 +57,12 @@ const TRIAL_STATUSES = [
   "APPROVED_FOR_MARKETING",
   "WITHHELD",
   "UNKNOWN",
+] as const;
+
+const SINGAPORE_PRODUCT_SEARCH_FIELDS = [
+  "active_ingredient",
+  "product_name",
+  "licence_number",
 ] as const;
 
 export function createClinicalEvidenceServer(
@@ -282,6 +290,37 @@ export function createClinicalEvidenceServer(
     async (input) => runTool(() => getDrugAdverseEventSummary(config, input)),
   );
 
+  server.registerTool(
+    "singapore_therapeutic_product_search",
+    {
+      title: "Search Singapore therapeutic-product register snapshot",
+      description:
+        "Search the dated HSA Listing of Registered Therapeutic Products on data.gov.sg by active ingredient, product name, or HSA licence number. This checks regulatory records, not efficacy, current stock, price, subsidy, recommendation, or patient suitability.",
+      inputSchema: {
+        query: z.string().min(2).max(200).describe("Deidentified product, ingredient, or licence query"),
+        field: z.enum(SINGAPORE_PRODUCT_SEARCH_FIELDS).default("active_ingredient"),
+        limit: z.number().int().min(1).max(20).default(10),
+      },
+      annotations: READ_ONLY,
+    },
+    async (input) => runTool(() => searchSingaporeTherapeuticProducts(config, input)),
+  );
+
+  server.registerTool(
+    "singapore_healthier_sg_drug_search",
+    {
+      title: "Search the Healthier SG Chronic Tier drug whitelist",
+      description:
+        "Search the dated MOH Healthier SG Whitelisted Drugs dataset by medication. It covers the Healthier SG Chronic Tier only, not the complete Singapore subsidised-drug list, individual entitlement, stock, or price.",
+      inputSchema: {
+        query: z.string().min(2).max(200).describe("Deidentified medication query"),
+        limit: z.number().int().min(1).max(20).default(10),
+      },
+      annotations: READ_ONLY,
+    },
+    async (input) => runTool(() => searchSingaporeHealthierSgDrugs(config, input)),
+  );
+
   server.registerResource(
     "clinical-evidence-sources",
     "clinical-evidence://sources",
@@ -327,6 +366,32 @@ function sourceCatalogue(syndicatedSourceName?: string): Record<string, unknown>
         purpose: "FDA label and adverse event report data",
         documentation: "https://open.fda.gov/",
       },
+      {
+        name: "Singapore HSA via data.gov.sg",
+        purpose: "Dated snapshot of Singapore-registered therapeutic products",
+        documentation:
+          "https://data.gov.sg/datasets/d_767279312753558cbf19d48344577084/view",
+        licence: "https://data.gov.sg/open-data-licence",
+      },
+      {
+        name: "Singapore MOH Healthier SG Whitelisted Drugs via data.gov.sg",
+        purpose: "Dated Healthier SG Chronic Tier medication and subsidy-class snapshot",
+        documentation:
+          "https://data.gov.sg/datasets/d_2a57d4e672be2a52118ae0bf4a0f4a4b/view",
+        licence: "https://data.gov.sg/open-data-licence",
+      },
+      {
+        name: "Singapore National Drug Formulary",
+        purpose: "Current human-facing drug, subsidy, and public-formulary reference",
+        access:
+          "Manual verification only; no documented public API. Obtain MOH permission before linking, ingesting, or republishing.",
+      },
+      {
+        name: "Singapore MOH subsidised-drug list",
+        purpose: "Current Standard Drug List and Medication Assistance Fund classifications",
+        access:
+          "Manual verification only; no documented public API. Review MOH reuse terms before linking, ingesting, or republishing.",
+      },
       ...(syndicatedSourceName
         ? [
             {
@@ -339,6 +404,9 @@ function sourceCatalogue(syndicatedSourceName?: string): Record<string, unknown>
     ],
     limits: [
       "Source records may be incomplete, delayed, corrected, or withdrawn.",
+      "The data.gov.sg HSA register is a dated snapshot; verify current registration in HSA Infosearch.",
+      "The Healthier SG whitelist covers the Chronic Tier only, not the complete Singapore subsidised-drug list.",
+      "Registration, subsidy, public-formulary availability, retail stock, and clinical recommendation are separate evidence states.",
       "FAERS reports do not establish causality, incidence, prevalence, or comparative risk.",
       "The server does not diagnose, prescribe, or replace clinical judgement.",
       "Do not submit protected health information or other patient identifiers.",

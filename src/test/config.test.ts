@@ -19,6 +19,15 @@ test("loads a complete private syndicated source configuration", () => {
   assert.equal(config.syndicatedSource?.loginProxyUrl, "http://private-evidence-bridge:6080");
 });
 
+test("loads an optional data.gov.sg API key", () => {
+  const config = loadConfig({
+    MCP_PUBLIC_URL: "https://clinical.example.test",
+    DATA_GOV_SG_API_KEY: "  data-gov-key  ",
+  });
+
+  assert.equal(config.dataGovSgApiKey, "data-gov-key");
+});
+
 test("rejects incomplete or publicly exposed plain HTTP source configuration", () => {
   assert.throws(
     () =>

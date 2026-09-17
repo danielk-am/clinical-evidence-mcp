@@ -11,6 +11,7 @@ export interface AppConfig {
   upstreamTimeoutMs: number;
   ncbiEmail?: string;
   ncbiApiKey?: string;
+  dataGovSgApiKey?: string;
   syndicatedSource?: SyndicatedSourceConfig;
 }
 
@@ -29,6 +30,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   );
   const ncbiEmail = cleanOptional(env.NCBI_EMAIL);
   const ncbiApiKey = cleanOptional(env.NCBI_API_KEY);
+  const dataGovSgApiKey = cleanOptional(env.DATA_GOV_SG_API_KEY);
   const syndicatedSource = loadSyndicatedSourceConfig(env);
 
   return {
@@ -47,6 +49,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     upstreamTimeoutMs: positiveInteger(env.UPSTREAM_TIMEOUT_MS, 20_000),
     ...(ncbiEmail ? { ncbiEmail } : {}),
     ...(ncbiApiKey ? { ncbiApiKey } : {}),
+    ...(dataGovSgApiKey ? { dataGovSgApiKey } : {}),
     ...(syndicatedSource ? { syndicatedSource } : {}),
   };
 }

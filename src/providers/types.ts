@@ -75,3 +75,70 @@ export interface DrugAdverseEventSummary {
   source: EvidenceSource;
   retrievedAt: string;
 }
+
+export type SingaporeTherapeuticProductSearchField =
+  | "active_ingredient"
+  | "product_name"
+  | "licence_number";
+
+export interface SingaporeTherapeuticProductRecord {
+  licenceNumber: string;
+  productName: string;
+  licenceHolder: string | null;
+  approvalDate: string | null;
+  forensicClassification: string | null;
+  atcCode: string | null;
+  dosageForm: string | null;
+  routeOfAdministration: string | null;
+  manufacturer: string | null;
+  countryOfManufacturer: string | null;
+  activeIngredients: string | null;
+  strength: string | null;
+  source: EvidenceSource;
+}
+
+export interface SingaporeTherapeuticProductSearchResult {
+  query: string;
+  field: SingaporeTherapeuticProductSearchField;
+  searchedQueries: string[];
+  totalFound: number | null;
+  totalsByQuery: Record<string, number>;
+  returned: number;
+  records: SingaporeTherapeuticProductRecord[];
+  dataset: {
+    id: string;
+    name: string;
+    managedBy: string;
+    lastUpdatedAt: string;
+    url: string;
+    licenceUrl: string;
+  };
+  attribution: string;
+  warnings: string[];
+  retrievedAt: string;
+}
+
+export interface SingaporeHealthierSgDrugRecord {
+  sequenceNumber: string | null;
+  medication: string;
+  subsidyClass: string | null;
+  source: EvidenceSource;
+}
+
+export interface SingaporeHealthierSgDrugSearchResult {
+  query: string;
+  totalFound: number;
+  returned: number;
+  records: SingaporeHealthierSgDrugRecord[];
+  dataset: {
+    id: string;
+    name: string;
+    managedBy: string;
+    lastUpdatedAt: string;
+    url: string;
+    licenceUrl: string;
+  };
+  attribution: string;
+  warnings: string[];
+  retrievedAt: string;
+}

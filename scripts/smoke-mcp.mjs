@@ -44,6 +44,8 @@ try {
     "drug_label_search",
     "literature_article_get",
     "literature_search",
+    "singapore_healthier_sg_drug_search",
+    "singapore_therapeutic_product_search",
   ];
   const names = tools.tools.map((tool) => tool.name).sort();
   if (JSON.stringify(names) !== JSON.stringify(expected)) {

@@ -1,6 +1,6 @@
 # Clinical Evidence MCP
 
-**Search medical literature, trial registrations, drug labels, and adverse-event reports from any compatible MCP client.**
+**Search medical literature, trial registrations, drug labels, adverse-event reports, and Singapore therapeutic-product records from any compatible MCP client.**
 
 Clinical Evidence MCP is a source-first Model Context Protocol server. It queries official public APIs at request time and returns structured records with stable identifiers, direct source URLs, and retrieval timestamps.
 
@@ -18,6 +18,8 @@ A bearer token is required. Tokens are issued by the operator, bound to one emai
 | `clinical_trial_get` | ClinicalTrials.gov | One study by NCT identifier |
 | `drug_label_search` | openFDA | Current label records matching a drug name |
 | `drug_adverse_event_summary` | openFDA FAERS | Reported reaction counts with safety warnings |
+| `singapore_therapeutic_product_search` | Singapore HSA via data.gov.sg | Dated regulatory records by ingredient, product, or HSA licence number |
+| `singapore_healthier_sg_drug_search` | Singapore MOH via data.gov.sg | Dated Healthier SG Chronic Tier medication and subsidy-class records |
 
 The server also exposes `clinical-evidence://sources`, a resource describing upstream datasets and their limits.
 
@@ -149,6 +151,7 @@ Vendor terms and API permission still apply. Private deployment does not overrid
 | `UPSTREAM_TIMEOUT_MS` | `20000` | Public provider request timeout |
 | `NCBI_EMAIL` | unset | Optional NCBI client contact |
 | `NCBI_API_KEY` | unset | Optional NCBI API key |
+| `DATA_GOV_SG_API_KEY` | unset | Optional for testing; recommended for production data.gov.sg rate limits |
 | `SYNDICATED_SOURCE_NAME` | unset | Private provider label |
 | `SYNDICATED_SOURCE_URL` | unset | Internal bridge URL |
 | `SYNDICATED_SOURCE_TOKEN` | unset | Bridge bearer secret |
@@ -168,6 +171,10 @@ FAERS reports are voluntary and incomplete. Counts do not establish causation, i
 
 Publication abstracts can remain subject to publisher or author copyright. This server fetches them on demand and does not build a persistent publication corpus.
 
+The Singapore integrations use openly licensed HSA therapeutic-product and MOH Healthier SG whitelist datasets from data.gov.sg. Responses include each dataset's update timestamp, access attribution, and scope warnings. Dataset metadata is cached for one hour, and production calls are limited within data.gov.sg's documented ten-second request window. A registration match does not establish clinical efficacy, subsidy, formulary availability, current stock, price, or patient suitability. A Healthier SG match covers the Chronic Tier only and does not establish individual entitlement. See [Singapore evidence boundaries](docs/SINGAPORE-EVIDENCE.md).
+
+Prices, retailer availability, commissions, and affiliate links are intentionally outside this service. Commercial data must be joined only after evidence ranking and regulatory checks, without exposing the evidence scorer to merchant identity or commission.
+
 ## Upstream documentation
 
 1. [NCBI E-utilities](https://www.ncbi.nlm.nih.gov/books/NBK25499/)
@@ -175,7 +182,11 @@ Publication abstracts can remain subject to publisher or author copyright. This 
 3. [ClinicalTrials.gov API](https://clinicaltrials.gov/data-api/api)
 4. [openFDA drug labels](https://open.fda.gov/apis/drug/label/)
 5. [openFDA drug adverse events](https://open.fda.gov/apis/drug/event/)
-6. [MCP Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
+6. [HSA registered therapeutic products on data.gov.sg](https://data.gov.sg/datasets/d_767279312753558cbf19d48344577084/view)
+7. [data.gov.sg dataset search API](https://guide.data.gov.sg/developer-guide/dataset-apis/search-and-filter-within-dataset)
+8. [Singapore Open Data Licence](https://data.gov.sg/open-data-licence)
+9. [MOH Healthier SG Whitelisted Drugs on data.gov.sg](https://data.gov.sg/datasets/d_2a57d4e672be2a52118ae0bf4a0f4a4b/view)
+10. [MCP Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
 
 ## Verify
 
